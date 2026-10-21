@@ -155,6 +155,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** home_more: false on Home (dock row only), true on the All apps screen (full grid, no header). */
     private boolean allApps;
     private boolean homeMore;
+    /** The big idle clock is up (nothing playing), so the small header clock stays hidden. */
+    private boolean idleClockShown;
     private List<RaceWeekend.Race> raceCalendar;
     private View racePanel;
     private TextView raceKicker, raceHeadline, raceSessions;
@@ -365,6 +367,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         nowPlaying = new NowPlaying(this, findViewById(R.id.nowPlaying), new NowPlaying.Exits() {
             @Override public void right() { firstTopButton().requestFocus(); }
             @Override public void down() { focusTile(lastFocused % COLUMNS); }
+            @Override public void idle(boolean idle) {
+                idleClockShown = idle;
+                findViewById(R.id.idleClock).setVisibility(idle ? View.VISIBLE : View.GONE);
+                updateClockVisibility();
+            }
         });
         raceCalendar = cfg.raceCalendar;
         racePanel = findViewById(R.id.racePanel);
@@ -1958,7 +1965,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private void updateClockVisibility() {
         boolean valid = System.currentTimeMillis() >= TIME_VALID_AFTER_MS;
-        clockBlock.setVisibility(valid ? View.VISIBLE : View.INVISIBLE);
+        clockBlock.setVisibility(valid && !idleClockShown ? View.VISIBLE : View.INVISIBLE);
         handler.removeCallbacks(clockCheck);
         if (valid) {
             updateGreeting();

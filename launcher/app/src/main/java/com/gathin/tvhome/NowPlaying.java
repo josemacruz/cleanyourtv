@@ -35,6 +35,8 @@ final class NowPlaying {
     interface Exits {
         void right();
         void down();
+        /** Nothing playing (true) or something playing (false): Home swaps the big idle clock in or out. */
+        void idle(boolean idle);
     }
 
     private final Context context;
@@ -215,15 +217,17 @@ final class NowPlaying {
             show();
             return;
         }
-        // Nothing playing: the card goes, leaving the clock alone at the top.
+        // Nothing playing: the card goes and Home shows the big idle clock in its place.
         main.removeCallbacks(tick);
         if (card.hasFocus()) card.clearFocus();
         card.setVisibility(View.GONE);
+        exits.idle(true);
     }
 
     private void show() {
         art.setVisibility(art.getDrawable() == null ? View.INVISIBLE : View.VISIBLE);
         boolean appearing = card.getVisibility() != View.VISIBLE;
+        exits.idle(false);
         card.setVisibility(View.VISIBLE);
         // Appearing must not steal focus from the dock: Android hands it to the first focusable view.
         if (appearing && card.hasFocus()) exits.down();
