@@ -521,7 +521,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
             return true;
         });
-        btnSettings.setOnClickListener(v -> open(systemIntent(Settings.ACTION_SETTINGS)));
+        // Settings opens a light glass menu of shortcuts into the TV settings (hold it for the launcher menu).
+        btnSettings.setOnClickListener(v -> showQuickSettingsMenu());
         btnReorder = findViewById(R.id.btnReorder);
         btnReorder.setOnClickListener(v -> toggleReorder());
         btnReorder.setVisibility(cfg.reorderButton ? View.VISIBLE : View.GONE);
@@ -2489,9 +2490,38 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         rows.getChildAt(0).requestFocus();
     }
 
+    /** tvOS-style settings menu: one glass dropdown, each row a direct jump into a TV settings page. */
+    private void showQuickSettingsMenu() {
+        View anchor = findViewById(R.id.btnSettings);
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        PopupWindow popup = glassPopup(panel, (int) (240 * density));
+        addSettingsMenuRow(rows, popup, R.drawable.ic_picture, R.string.quick_picture,
+                () -> open(systemIntent(Settings.ACTION_DISPLAY_SETTINGS)));
+        addSettingsMenuRow(rows, popup, R.drawable.ic_volume, R.string.quick_sound,
+                () -> open(systemIntent(Settings.ACTION_SOUND_SETTINGS)));
+        addSettingsMenuRow(rows, popup, R.drawable.ic_wifi, R.string.quick_network,
+                () -> open(systemIntent(Settings.ACTION_WIFI_SETTINGS)));
+        addSettingsMenuRow(rows, popup, R.drawable.ic_apps, R.string.quick_apps,
+                () -> open(systemIntent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS)));
+        addSettingsMenuRow(rows, popup, R.drawable.ic_settings, R.string.tv_settings,
+                () -> open(systemIntent(Settings.ACTION_SETTINGS)));
+        addSettingsMenuRow(rows, popup, R.drawable.ic_home_settings, R.string.launcher_settings,
+                () -> startActivityForResult(new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST));
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        popup.setWidth(Math.max((int) (240 * density), panel.getMeasuredWidth()));
+        dropIn(popup, panel, anchor, getResources().getBoolean(R.bool.rtl_menu_bar) ? Gravity.START : Gravity.END);
+        rows.getChildAt(0).requestFocus();
+    }
+
     private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
+        addSettingsMenuRow(rows, popup, 0, title, action);
+    }
+
+    private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, int icon, int title, Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
-        row.findViewById(R.id.icon).setVisibility(View.GONE);
+        ImageView iconView = row.findViewById(R.id.icon);
+        if (icon == 0) iconView.setVisibility(View.GONE); else iconView.setImageResource(icon);
         row.findViewById(R.id.dot).setVisibility(View.GONE);
         row.findViewById(R.id.status).setVisibility(View.GONE);
         ((TextView) row.findViewById(R.id.title)).setText(title);
