@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,6 +28,7 @@ public final class LauncherSettingsActivity extends Activity {
     private int rowsBelowDock;
     private boolean animations;
     private boolean advancedEffects;
+    private boolean homeMore;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -34,7 +36,9 @@ public final class LauncherSettingsActivity extends Activity {
         setContentView(R.layout.activity_launcher_settings);
         choices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         Config config = Config.load(this);
-        columns = config.columns;
+        // home_more: Home's row is sized by its apps, so the column choice drives the All apps screen instead.
+        homeMore = getResources().getBoolean(R.bool.home_more);
+        columns = homeMore ? choices.getInt(AllAppsActivity.COLUMNS_KEY, AllAppsActivity.DEFAULT_COLUMNS) : config.columns;
         rowsBelowDock = config.rowsBelowDock;
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
@@ -46,7 +50,7 @@ public final class LauncherSettingsActivity extends Activity {
             columnChoices[i].setOnClickListener(v -> {
                 if (columns == value) return;
                 columns = value;
-                choices.edit().putInt("columns", value).apply();
+                choices.edit().putInt(homeMore ? AllAppsActivity.COLUMNS_KEY : "columns", value).apply();
                 setResult(RESULT_OK);
                 refresh();
             });
@@ -68,6 +72,12 @@ public final class LauncherSettingsActivity extends Activity {
         if (getResources().getBoolean(R.bool.rtl_app_grid)) {
             reverseRow(columnChoices);
             reverseRow(rowChoices);
+        }
+        if (homeMore) {
+            ((TextView) findViewById(R.id.columnsLabel)).setText(R.string.all_apps_columns_label);
+            // Home shows only the dock row: rows below it do not exist, so the choice is hidden.
+            findViewById(R.id.rowsLabel).setVisibility(View.GONE);
+            ((View) rowChoices[0].getParent()).setVisibility(View.GONE);
         }
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
         wallpaperChoice.setOnClickListener(v -> showWallpaperPicker());
@@ -96,10 +106,10 @@ public final class LauncherSettingsActivity extends Activity {
         followThemeChoice = findViewById(R.id.followThemeChoice);
         followThemeChoice.setOnClickListener(v -> {
             if (!hasOnTvChoices()) return;
-            choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
+            choices.edit().remove("columns").remove(AllAppsActivity.COLUMNS_KEY).remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY).commit();
             Config current = Config.load(this);
-            columns = current.columns;
+            columns = homeMore ? AllAppsActivity.DEFAULT_COLUMNS : current.columns;
             rowsBelowDock = current.rowsBelowDock;
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
@@ -112,8 +122,16 @@ public final class LauncherSettingsActivity extends Activity {
         });
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
                 open(new Intent(Settings.ACTION_SETTINGS)));
+        if (!hasWallpapers()) wallpaperChoice.setVisibility(View.GONE);   // only "none" to choose: nothing to set
         refresh();
         columnChoices[Math.max(0, Math.min(columns - 4, 3))].requestFocus();
+    }
+
+    private boolean hasWallpapers() {
+        File dir = Config.dir(this);
+        if (dir == null) return false;
+        if (new File(dir, Config.WALLPAPER_NAME).isFile()) return true;
+        return !WallpaperRotation.images(new File(dir, "wallpapers")).isEmpty();
     }
 
     private void reverseRow(TextView[] views) {

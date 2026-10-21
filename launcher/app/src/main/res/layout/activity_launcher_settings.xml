@@ -24,6 +24,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:id="@+id/columnsLabel"
             android:layout_marginTop="28dp"
             android:text="@string/columns_label"
             android:textColor="#FFFFFFFF"
@@ -44,6 +45,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:id="@+id/rowsLabel"
             android:layout_marginTop="18dp"
             android:text="@string/rows_below_dock_label"
             android:textColor="#FFFFFFFF"

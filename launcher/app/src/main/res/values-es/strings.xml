@@ -105,4 +105,5 @@
     <string name="quick_sound">Sonido</string>
     <string name="all_apps">Todas</string>
     <string name="all_apps_title">Apps</string>
+    <string name="all_apps_columns_label">Columnas en la pantalla de Apps</string>
 </resources>

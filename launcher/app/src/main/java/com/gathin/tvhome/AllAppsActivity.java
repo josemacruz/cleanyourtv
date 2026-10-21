@@ -30,7 +30,10 @@ import java.util.Set;
  */
 public class AllAppsActivity extends Activity {
 
-    private static final int COLUMNS = 5;
+    static final String COLUMNS_KEY = "all_apps_columns";
+    static final int DEFAULT_COLUMNS = 5;
+    /** Launcher settings' column choice (4 to 7) while home_more is on. */
+    private int columns;
     /** Tile size from the real column width: 16:9, with a gap on each side. */
     private int tileW, tileH;
 
@@ -53,12 +56,14 @@ public class AllAppsActivity extends Activity {
         super.onCreate(state);
         setContentView(R.layout.activity_all_apps);
         RecyclerView grid = findViewById(R.id.allAppsGrid);
+        int chosen = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getInt(COLUMNS_KEY, DEFAULT_COLUMNS);
+        columns = chosen >= 4 && chosen <= 7 ? chosen : DEFAULT_COLUMNS;
         float d = getResources().getDisplayMetrics().density;
         int screen = getResources().getDisplayMetrics().widthPixels;
-        int column = (screen - Math.round(160 * d)) / COLUMNS;
+        int column = (screen - Math.round(160 * d)) / columns;
         tileW = column - Math.round(24 * d);
         tileH = Math.round(tileW * 9 / 16f);
-        grid.setLayoutManager(new GridLayoutManager(this, COLUMNS));
+        grid.setLayoutManager(new GridLayoutManager(this, columns));
         grid.setItemAnimator(null);
         List<App> apps = load();
         grid.setAdapter(new Adapter(apps));

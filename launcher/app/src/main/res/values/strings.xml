@@ -112,4 +112,5 @@
     <string name="quick_sound">Sound</string>
     <string name="all_apps">All apps</string>
     <string name="all_apps_title">Apps</string>
+    <string name="all_apps_columns_label">Columns on the Apps screen</string>
 </resources>
