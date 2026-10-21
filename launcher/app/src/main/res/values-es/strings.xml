@@ -103,4 +103,5 @@
     <string name="now_playing_paused">En pausa</string>
     <string name="now_playing_open">Abrir</string>
     <string name="quick_sound">Sonido</string>
+    <string name="all_apps">Todas</string>
 </resources>

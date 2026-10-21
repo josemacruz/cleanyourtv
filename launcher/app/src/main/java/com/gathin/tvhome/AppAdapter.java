@@ -57,10 +57,13 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void onLibraryRequested();
         void onLibraryFocused();
         void onLibraryUp();
+
+        /** The dock's "All apps" tile (config.xml home_more) was pressed. */
+        void onMoreRequested();
     }
 
     static final class Entry {
-        static final int APP = 0, HOME_SETTINGS = 1, CARD = 2, EMPTY = 3;
+        static final int APP = 0, HOME_SETTINGS = 1, CARD = 2, EMPTY = 3, MORE = 4;
 
         final int kind;
         final String label;
@@ -199,6 +202,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     /** Tile names and bundled banners that replace the app's own (config.xml, app_labels and app_banners). */
     private final Map<String, String> appLabels, appBanners;
     private final List<Entry> items = new ArrayList<>();
+    /** config.xml home_more: an "All apps" tile closes the dock row; Home shows only that row. */
+    private final boolean showMore;
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this.ctx = ctx;
@@ -211,6 +216,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.advancedEffects = cfg.animations && cfg.advancedEffects;
         this.showHomeSettings = cfg.showHomeSettingsShortcut;
         this.showLibrary = cfg.appLibrary;
+        this.showMore = ctx.getResources().getBoolean(R.bool.home_more);
         this.reducedMotion = cfg.reducedMotion;
         this.rowsBelowDock = cfg.rowsBelowDock;
         this.dockTitle = cfg.dockTitle;
@@ -301,6 +307,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         docked = 0;
         while (docked < fresh.size() && favourites.contains(fresh.get(docked).pkg)) docked++;
+        if (showMore && dockRow && !reordering && docked > 0) {
+            fresh.add(docked, new Entry(Entry.MORE, ctx.getString(R.string.all_apps),
+                    new ComponentName(ctx, "all-apps"), null, ctx.getDrawable(R.drawable.ic_apps), null, 0));
+            docked++;
+        }
         emptySlots = dockRow && !reordering ? DockSlots.empty(docked, dockSize, fresh.size(), fillDock) : 0;
         for (int i = 0; i < emptySlots; i++) {
             fresh.add(docked + i, new Entry(Entry.EMPTY, "", new ComponentName(ctx, "empty-dock-slot-" + i),
@@ -449,6 +460,10 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
     private void launch(Entry e) {
+        if (e.kind == Entry.MORE) {
+            listener.onMoreRequested();
+            return;
+        }
         if (e.kind == Entry.HOME_SETTINGS) {
             ctx.startActivity(new Intent(ctx, HomeSettingsActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -479,12 +494,36 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     @Override
     public int getItemCount() {
-        return items.size() + (showLibrary ? 1 : 0);
+        return visibleCount() + (showLibrary && !collapsed ? 1 : 0);
     }
 
-    int appCount() { return items.size(); }
+    /** home_more on Home: only the dock row is in the grid, so nothing can scroll up under the header. */
+    private boolean collapsed;
 
-    boolean isLibraryAt(int position) { return showLibrary && position == items.size(); }
+    private int visibleCount() {
+        return collapsed ? Math.min(items.size(), dockSize) : items.size();
+    }
+
+    void setCollapsed(boolean on) {
+        if (collapsed == on) return;
+        int full = items.size() + (showLibrary ? 1 : 0);
+        int dock = Math.min(items.size(), dockSize);
+        collapsed = on;
+        if (full > dock) {
+            if (on) notifyItemRangeRemoved(dock, full - dock);
+            else notifyItemRangeInserted(dock, full - dock);
+        }
+    }
+
+    int appCount() { return visibleCount(); }
+
+    /** Position of the "All apps" tile, or -1. */
+    int morePosition() {
+        for (int i = 0; i < items.size(); i++) if (items.get(i).kind == Entry.MORE) return i;
+        return -1;
+    }
+
+    boolean isLibraryAt(int position) { return showLibrary && !collapsed && position == items.size(); }
 
     @Override public int getItemViewType(int position) { return isLibraryAt(position) ? 1 : 0; }
 

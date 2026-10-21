@@ -38,6 +38,7 @@ final class NowPlaying {
     }
 
     private final Context context;
+    private final Exits exits;
     private final View card;
     private final ImageView art;
     private final TextView title;
@@ -71,6 +72,7 @@ final class NowPlaying {
     NowPlaying(Context context, View card, Exits exits) {
         this.context = context;
         this.card = card;
+        this.exits = exits;
         this.info = card.findViewById(R.id.nowPlayingInfo);
         this.track = card.findViewById(R.id.nowPlayingTrack);
         this.fill = card.findViewById(R.id.nowPlayingFill);
@@ -85,28 +87,37 @@ final class NowPlaying {
         prev.setOnClickListener(v -> { if (current != null) current.getTransportControls().skipToPrevious(); });
         play.setOnClickListener(v -> togglePlayback());
         next.setOnClickListener(v -> { if (current != null) current.getTransportControls().skipToNext(); });
-        View[] items = {info, prev, play, next};
-        for (int i = 0; i < items.length; i++) {
+        // Artwork on the left, buttons under the text: Right/Down from the artwork reach play-pause,
+        // Left/Right move along the buttons, Left from the first goes back to the artwork, Down leaves to the dock.
+        View[] buttons = {prev, play, next};
+        View.OnFocusChangeListener grow = (v, focused) -> v.animate()
+                .scaleX(focused ? 1.08f : 1f).scaleY(focused ? 1.08f : 1f).setDuration(160).start();
+        info.setOnFocusChangeListener(grow);
+        info.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            switch (keyCode) {
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                case KeyEvent.KEYCODE_DPAD_DOWN: play.requestFocus(); return true;
+                case KeyEvent.KEYCODE_DPAD_UP: exits.right(); return true;
+                case KeyEvent.KEYCODE_DPAD_LEFT: return true;
+                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: return togglePlayback();
+                default: return false;
+            }
+        });
+        for (int i = 0; i < buttons.length; i++) {
             final int at = i;
-            View item = items[i];
-            item.setOnFocusChangeListener((v, focused) -> v.animate()
-                    .scaleX(focused ? 1.08f : 1f).scaleY(focused ? 1.08f : 1f).setDuration(160).start());
-            item.setOnKeyListener((v, keyCode, event) -> {
+            buttons[i].setOnFocusChangeListener(grow);
+            buttons[i].setOnKeyListener((v, keyCode, event) -> {
                 if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
                 switch (keyCode) {
-                    case KeyEvent.KEYCODE_DPAD_RIGHT:
-                        for (int j = at + 1; j < items.length; j++) {
-                            if (items[j].getVisibility() == View.VISIBLE) { items[j].requestFocus(); return true; }
-                        }
-                        exits.right();
-                        return true;
                     case KeyEvent.KEYCODE_DPAD_LEFT:
-                        for (int j = at - 1; j >= 0; j--) {
-                            if (items[j].getVisibility() == View.VISIBLE) { items[j].requestFocus(); return true; }
-                        }
-                        return true;   // the card is the left edge: stay
+                        if (at == 0) info.requestFocus(); else buttons[at - 1].requestFocus();
+                        return true;
+                    case KeyEvent.KEYCODE_DPAD_RIGHT:
+                        if (at < buttons.length - 1) buttons[at + 1].requestFocus();
+                        return true;
+                    case KeyEvent.KEYCODE_DPAD_UP: info.requestFocus(); return true;
                     case KeyEvent.KEYCODE_DPAD_DOWN: exits.down(); return true;
-                    case KeyEvent.KEYCODE_DPAD_UP: return true;
                     case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: return togglePlayback();
                     default: return false;
                 }
@@ -119,7 +130,7 @@ final class NowPlaying {
     }
 
     void focus() {
-        info.requestFocus();
+        play.requestFocus();
     }
 
     void start() {
@@ -201,26 +212,29 @@ final class NowPlaying {
                 progress();
                 if (!paused) main.postDelayed(tick, 1000);
             }
-            controls(true);
             show();
             return;
         }
-        // Nothing playing: a Spotify shortcut, if Spotify is installed.
-        Drawable spotify = icon(SPOTIFY);
-        if (spotify == null) {
-            if (card.hasFocus()) card.clearFocus();
-            controls(false);
-            card.setVisibility(View.GONE);
-            return;
-        }
-        title.setText("Spotify");
-        artist.setText(R.string.now_playing_open);
-        artist.setVisibility(View.VISIBLE);
-        art.setImageDrawable(spotify);
+        // Nothing playing: the card goes, leaving the clock alone at the top.
         main.removeCallbacks(tick);
-        track.setVisibility(View.GONE);
-        controls(false);
-        show();
+        if (card.hasFocus()) card.clearFocus();
+        card.setVisibility(View.GONE);
+    }
+
+    private void show() {
+        art.setVisibility(art.getDrawable() == null ? View.INVISIBLE : View.VISIBLE);
+        boolean appearing = card.getVisibility() != View.VISIBLE;
+        card.setVisibility(View.VISIBLE);
+        // Appearing must not steal focus from the dock: Android hands it to the first focusable view.
+        if (appearing && card.hasFocus()) exits.down();
+    }
+
+    private Drawable icon(String pkg) {
+        try {
+            return context.getPackageManager().getApplicationIcon(pkg);
+        } catch (PackageManager.NameNotFoundException missing) {
+            return null;
+        }
     }
 
     /** Sizes the progress fill from the session's position, extrapolated from its last update. */
@@ -241,26 +255,8 @@ final class NowPlaying {
         if (lp.width != target) { lp.width = target; fill.setLayoutParams(lp); }
     }
 
-    private void controls(boolean on) {
-        if (!on && (prev.hasFocus() || play.hasFocus() || next.hasFocus())) info.requestFocus();
-        int v = on ? View.VISIBLE : View.GONE;
-        prev.setVisibility(v);
-        play.setVisibility(v);
-        next.setVisibility(v);
-    }
 
-    private void show() {
-        art.setVisibility(art.getDrawable() == null ? View.GONE : View.VISIBLE);
-        card.setVisibility(View.VISIBLE);
-    }
 
-    private Drawable icon(String pkg) {
-        try {
-            return context.getPackageManager().getApplicationIcon(pkg);
-        } catch (PackageManager.NameNotFoundException missing) {
-            return null;
-        }
-    }
 
     private void open() {
         String pkg = current != null ? current.getPackageName() : SPOTIFY;

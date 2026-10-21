@@ -152,6 +152,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView shamsiDate;
     private TextView stats;
     private NowPlaying nowPlaying;
+    /** home_more: false on Home (dock row only), true on the All apps screen (full grid, no header). */
+    private boolean allApps;
+    private boolean homeMore;
     private List<RaceWeekend.Race> raceCalendar;
     private View racePanel;
     private TextView raceKicker, raceHeadline, raceSessions;
@@ -358,6 +361,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnWifi = findViewById(R.id.btnWifi);
         shamsiDate = findViewById(R.id.shamsiDate);
         stats = findViewById(R.id.stats);
+        homeMore = getResources().getBoolean(R.bool.home_more) && cfg.dockRow;
         nowPlaying = new NowPlaying(this, findViewById(R.id.nowPlaying), new NowPlaying.Exits() {
             @Override public void right() { firstTopButton().requestFocus(); }
             @Override public void down() { focusTile(lastFocused % COLUMNS); }
@@ -444,6 +448,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     AnimationUtils.loadAnimation(this, enterAnim), enterDelay));
         }
         adapter = new AppAdapter(this, this, COLUMNS, cfg);
+        if (homeMore) adapter.setCollapsed(true);
         dockApps = cfg.dockApps;
         fillDockLeavesSlots = !cfg.fillDock;
         adapter.setSavedOrder(Order.ranks(Order.load(Order.file(this)), dockApps));
@@ -623,6 +628,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onNewIntent(intent);
         if (openLauncherSettingsIfAsked(intent)) return;
         if (intent == null || !intent.hasCategory(Intent.CATEGORY_HOME)) return;
+        exitAllApps(false);   // Home on the All apps screen goes back to Home
         grid.scrollToPosition(0);
         lastFocused = 0;
         lastFocusedKey = adapter.getItemCount() > 0 ? adapter.keyAt(0) : null;
@@ -658,6 +664,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             recreate();
             return;
         }
+        exitAllApps(false);
         restartIdleClock();
         promptsPaused = false;
         if (grid.getAdapter() == null) grid.setAdapter(adapter);   // dropped by onTrimMemory
@@ -1151,7 +1158,40 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onBackPressed() {
-        // Home screen: Back goes nowhere.
+        // All apps screen: Back returns to Home. Home screen: Back goes nowhere.
+        if (allApps) exitAllApps(true);
+    }
+
+    @Override
+    public void onMoreRequested() {
+        if (allApps) return;
+        allApps = true;
+        View header = (View) clockBlock.getParent();
+        header.animate().alpha(0f).setDuration(animations ? 180 : 0)
+                .withEndAction(() -> { if (allApps) header.setVisibility(View.INVISIBLE); }).start();
+        hideGlass();
+        adapter.setCollapsed(false);
+        // The first app after the dock row: the grid scrolls it up into the freed screen.
+        grid.post(() -> {
+            int first = Math.min(COLUMNS, adapter.appCount() - 1);
+            focusTile(first > 0 ? first : 0);
+        });
+    }
+
+    /** Leaves the All apps screen: header and now playing come back, focus returns to the All apps tile. */
+    private void exitAllApps(boolean refocus) {
+        if (!allApps) return;
+        allApps = false;
+        View header = (View) clockBlock.getParent();
+        header.animate().cancel();
+        header.setVisibility(View.VISIBLE);
+        header.animate().alpha(1f).setDuration(animations && refocus ? 180 : 0).start();
+        hideGlass();
+        adapter.setCollapsed(true);
+        int more = adapter.morePosition();
+        grid.scrollToPosition(0);
+        // After the rows are gone and the grid has laid out again, so the glass lands on the tile.
+        if (refocus) grid.post(() -> focusTile(more >= 0 ? more : 0));
     }
 
     // ---- glass highlight -------------------------------------------------------------------------
@@ -1783,8 +1823,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return GridNavigation.atHorizontalEdge(position, rowCount, COLUMNS,
                     rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
+        if (homeMore && !allApps && keyCode == KeyEvent.KEYCODE_DPAD_DOWN && position < COLUMNS) {
+            return true;   // Home shows only the dock row; the rest is behind the All apps tile
+        }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            if (position < COLUMNS) return false;          // dock row: let focus move to the top bar
+            if (position < COLUMNS) return allApps;        // dock row: top bar on Home, nothing above on All apps
             target = position - COLUMNS;
         } else {
             int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;
