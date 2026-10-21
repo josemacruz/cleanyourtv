@@ -1166,23 +1166,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public void onBackPressed() {
         // All apps screen: Back returns to Home. Home screen: Back goes nowhere.
-        if (allApps) exitAllApps(true);
+        // The All apps screen is its own activity now; nothing to leave here.
     }
 
     @Override
     public void onMoreRequested() {
-        if (allApps) return;
-        allApps = true;
-        View header = (View) clockBlock.getParent();
-        header.animate().alpha(0f).setDuration(animations ? 180 : 0)
-                .withEndAction(() -> { if (allApps) header.setVisibility(View.INVISIBLE); }).start();
-        hideGlass();
-        adapter.setCollapsed(false);
-        // The first app after the dock row: the grid scrolls it up into the freed screen.
-        grid.post(() -> {
-            int first = Math.min(COLUMNS, adapter.appCount() - 1);
-            focusTile(first > 0 ? first : 0);
-        });
+        // Its own screen, so Home's grid stays the dock row and nothing scrolls under the header.
+        startActivity(new Intent(this, AllAppsActivity.class));
     }
 
     /** Leaves the All apps screen: header and now playing come back, focus returns to the All apps tile. */
