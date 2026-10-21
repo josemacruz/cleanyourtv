@@ -358,7 +358,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnWifi = findViewById(R.id.btnWifi);
         shamsiDate = findViewById(R.id.shamsiDate);
         stats = findViewById(R.id.stats);
-        nowPlaying = new NowPlaying(this, findViewById(R.id.nowPlaying));
+        nowPlaying = new NowPlaying(this, findViewById(R.id.nowPlaying), new NowPlaying.Exits() {
+            @Override public void right() { firstTopButton().requestFocus(); }
+            @Override public void down() { focusTile(lastFocused % COLUMNS); }
+        });
         raceCalendar = cfg.raceCalendar;
         racePanel = findViewById(R.id.racePanel);
         raceKicker = findViewById(R.id.raceKicker);
@@ -555,6 +558,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int firstButton = btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : firstTopButton().getId();
             int leftButton = rtlMenuBar ? R.id.btnSettings : firstButton;
             int rightButton = rtlMenuBar ? firstButton : R.id.btnSettings;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && v.getId() == leftButton && nowPlaying.isShown()) {
+                nowPlaying.focus();   // Left from the first pill reaches the now playing card
+                return true;
+            }
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
             return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == rightButton;
         };
