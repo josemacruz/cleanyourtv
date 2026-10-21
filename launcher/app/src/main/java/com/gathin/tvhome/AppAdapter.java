@@ -444,7 +444,13 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             h.icon.setImageDrawable(e.icon);
             h.icon.setVisibility(View.VISIBLE);
             h.label.setText(e.label);
-            h.label.setVisibility(View.VISIBLE);
+            // The All apps tile is the grid glyph alone; its name stays for TalkBack.
+            h.label.setVisibility(e.kind == Entry.MORE ? View.GONE : View.VISIBLE);
+            // Without the label the glyph sits in the middle of the tile, not above the label's space.
+            ViewGroup.MarginLayoutParams ilp = (ViewGroup.MarginLayoutParams) h.icon.getLayoutParams();
+            int bottom = e.kind == Entry.MORE ? 0 : Math.round(14 * ctx.getResources().getDisplayMetrics().density);
+            if (ilp.bottomMargin != bottom) { ilp.bottomMargin = bottom; h.icon.setLayoutParams(ilp); }
+            h.card.setContentDescription(e.kind == Entry.MORE ? e.label : null);
         }
         h.card.setOnClickListener(v -> launch(e));
         h.card.setOnLongClickListener(v -> {
