@@ -55,6 +55,15 @@ final class NowPlaying {
     private final MediaSessionManager.OnActiveSessionsChangedListener changed = controllers -> pick();
 
     private final View info;
+    private final View track;
+    private final View fill;
+    /** Once a second while something plays and Home is resumed: moves the progress line. */
+    private final Runnable tick = new Runnable() {
+        @Override public void run() {
+            progress();
+            main.postDelayed(this, 1000);
+        }
+    };
     private final ImageView prev;
     private final ImageView play;
     private final ImageView next;
@@ -63,6 +72,8 @@ final class NowPlaying {
         this.context = context;
         this.card = card;
         this.info = card.findViewById(R.id.nowPlayingInfo);
+        this.track = card.findViewById(R.id.nowPlayingTrack);
+        this.fill = card.findViewById(R.id.nowPlayingFill);
         this.art = card.findViewById(R.id.nowPlayingArt);
         art.setClipToOutline(true);   // rounded artwork, as on tvOS
         this.title = card.findViewById(R.id.nowPlayingTitle);
@@ -124,6 +135,7 @@ final class NowPlaying {
     }
 
     void stop() {
+        main.removeCallbacks(tick);
         if (sessions != null) sessions.removeOnActiveSessionsChangedListener(changed);
         sessions = null;
         watch(null);
@@ -182,6 +194,13 @@ final class NowPlaying {
             if (b == null) b = m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
             if (b != null) art.setImageBitmap(b); else art.setImageDrawable(icon(current.getPackageName()));
             play.setImageResource(paused ? R.drawable.ic_media_play : R.drawable.ic_media_pause);
+            long duration = m.getLong(MediaMetadata.METADATA_KEY_DURATION);
+            track.setVisibility(duration > 0 ? View.VISIBLE : View.GONE);
+            main.removeCallbacks(tick);
+            if (duration > 0) {
+                progress();
+                if (!paused) main.postDelayed(tick, 1000);
+            }
             controls(true);
             show();
             return;
@@ -198,8 +217,28 @@ final class NowPlaying {
         artist.setText(R.string.now_playing_open);
         artist.setVisibility(View.VISIBLE);
         art.setImageDrawable(spotify);
+        main.removeCallbacks(tick);
+        track.setVisibility(View.GONE);
         controls(false);
         show();
+    }
+
+    /** Sizes the progress fill from the session's position, extrapolated from its last update. */
+    private void progress() {
+        if (current == null || current.getMetadata() == null) return;
+        long duration = current.getMetadata().getLong(MediaMetadata.METADATA_KEY_DURATION);
+        PlaybackState s = current.getPlaybackState();
+        if (duration <= 0 || s == null) return;
+        long pos = s.getPosition();
+        if (s.getState() == PlaybackState.STATE_PLAYING) {
+            pos += (long) ((android.os.SystemClock.elapsedRealtime() - s.getLastPositionUpdateTime()) * s.getPlaybackSpeed());
+        }
+        float f = Math.max(0f, Math.min(1f, pos / (float) duration));
+        int w = track.getWidth();
+        if (w == 0) return;
+        android.view.ViewGroup.LayoutParams lp = fill.getLayoutParams();
+        int target = Math.round(w * f);
+        if (lp.width != target) { lp.width = target; fill.setLayoutParams(lp); }
     }
 
     private void controls(boolean on) {

@@ -303,10 +303,11 @@
                 android:layout_height="wrap_content"
                 android:layout_below="@id/stats"
                 android:layout_alignStart="@id/leftBlock"
-                android:layout_marginTop="14dp"
+                android:layout_marginTop="20dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:padding="6dp"
+                android:padding="8dp"
+                android:paddingEnd="12dp"
                 android:background="@drawable/np_capsule"
                 android:clipChildren="false"
                 android:visibility="gone">
@@ -315,10 +316,7 @@
                     android:id="@+id/nowPlayingInfo"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="16dp"
-                    android:paddingTop="6dp"
-                    android:paddingBottom="6dp"
+                    android:padding="6dp"
                     android:background="@drawable/now_playing_bg"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
@@ -327,39 +325,55 @@
 
                     <ImageView
                         android:id="@+id/nowPlayingArt"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:layout_marginEnd="12dp"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:layout_marginEnd="16dp"
                         android:background="@drawable/np_art_bg"
                         android:scaleType="centerCrop" />
 
                     <LinearLayout
-                        android:layout_width="wrap_content"
+                        android:layout_width="240dp"
                         android:layout_height="wrap_content"
+                        android:layout_marginEnd="10dp"
                         android:orientation="vertical">
 
                         <TextView
                             android:id="@+id/nowPlayingTitle"
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:maxWidth="260dp"
                             android:singleLine="true"
                             android:ellipsize="end"
                             android:textColor="#FFFFFFFF"
-                            android:textSize="14sp"
-                            android:letterSpacing="0.01"
-                            android:fontFamily="@font/outfit_medium" />
+                            android:textSize="16sp"
+                            android:fontFamily="@font/outfit_medium"
+                            android:includeFontPadding="false" />
 
                         <TextView
                             android:id="@+id/nowPlayingArtist"
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:maxWidth="260dp"
+                            android:layout_marginTop="4dp"
                             android:singleLine="true"
                             android:ellipsize="end"
-                            android:textColor="#99FFFFFF"
-                            android:textSize="12sp"
-                            android:fontFamily="@font/outfit_regular" />
+                            android:textColor="#8CFFFFFF"
+                            android:textSize="13sp"
+                            android:fontFamily="@font/outfit_regular"
+                            android:includeFontPadding="false" />
+
+                        <!-- Thin progress line, tvOS style; NowPlaying sizes the fill once a second. -->
+                        <FrameLayout
+                            android:id="@+id/nowPlayingTrack"
+                            android:layout_width="match_parent"
+                            android:layout_height="3dp"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/np_track">
+
+                            <View
+                                android:id="@+id/nowPlayingFill"
+                                android:layout_width="0dp"
+                                android:layout_height="match_parent"
+                                android:background="@drawable/np_fill" />
+                        </FrameLayout>
                     </LinearLayout>
                 </LinearLayout>
 

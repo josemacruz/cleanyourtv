@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Now playing: one frosted capsule holding artwork, text and the media buttons, tvOS style. -->
+<!-- Now playing: one frosted card holding artwork, text, progress and the media buttons, tvOS style. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#1FFFFFFF" />
-    <corners android:radius="30dp" />
+    <solid android:color="#1AFFFFFF" />
+    <corners android:radius="22dp" />
 </shape>
